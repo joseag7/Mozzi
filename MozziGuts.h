@@ -171,17 +171,23 @@ HIFI is not available/not required on Teensy 3.1.
 #endif
 
 
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // Teensy 3
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) // Teensy 3
 #include "AudioConfigTeensy3_12bit.h"
 #else
-#if (AUDIO_MODE == STANDARD)
-#include "AudioConfigStandard9bitPwm.h"
-#elif (AUDIO_MODE == STANDARD_PLUS)
-#include "AudioConfigStandardPlus.h"
-#elif (AUDIO_MODE == HIFI)
-#include "AudioConfigHiSpeed14bitPwm.h"
-#endif
 
+ #if defined(__SAMD21G18A__) // feather M0
+ #include "AudioConfigSamdZero_10bit.h"
+ #else
+
+  #if (AUDIO_MODE == STANDARD)
+  #include "AudioConfigStandard9bitPwm.h"
+  #elif (AUDIO_MODE == STANDARD_PLUS)
+  #include "AudioConfigStandardPlus.h"
+  #elif (AUDIO_MODE == HIFI)
+  #include "AudioConfigHiSpeed14bitPwm.h"
+  #endif
+
+ #endif
 #endif
 
 // common numeric types
@@ -189,7 +195,7 @@ typedef unsigned char uchar;
 typedef unsigned int uint;
 typedef unsigned long ulong;
 
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) || defined(__SAMD21G18A__) // teensy 3, 3.1, feather M0
 //typedef uint8_t byte;//unsigned char;
 //typedef int8_t char;
 //typedef (uint16_t) (short unsigned int);
@@ -271,7 +277,6 @@ calculations here which could be done in setup() or updateControl().
 In HIFI mode, it's a 14 bit number between -16384 and 16383 inclusive.
 */
 #if (STEREO_HACK == true)
-extern int audio_out_1, audio_out_2;
 void updateAudio();
 #else
 int updateAudio();

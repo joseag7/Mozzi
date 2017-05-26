@@ -9,7 +9,7 @@
  *
  */
 
- #if ARDUINO >= 100
+#if ARDUINO >= 100
  #include "Arduino.h"
 #else
  #include "WProgram.h"
@@ -22,8 +22,10 @@
 #include "CircularBuffer.h"
 //#include "mozzi_utils.h"
 
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) // teensy 3, 3.1
 #include "IntervalTimer.h"
+#elif defined(__SAMD21G18A__) //feather M0
+#include "avdweb_SAMDtimer.h"
 #else
 #include "TimerZero.h"
 #include "TimerOne.h"
@@ -37,9 +39,9 @@
 
 
 // this seems to get included before mozzi_analog.cpp
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
-	ADC *adc; // adc object
-	uint8_t teensy_pin;
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) || defined(__SAMD21G18A__) // teensy 3, 3.1, feather M0
+	//joseag7//ADC *adc; // adc object
+	//joseag7//uint8_t teensy_pin;
 #endif
 
 /*
@@ -73,7 +75,7 @@ CircularBuffer <unsigned int> output_buffer2; // fixed size 256
 #endif
 //-----------------------------------------------------------------------------------------------------------------
 
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) || defined(__SAMD21G18A__) // teensy 3, 3.1, feather M0
 // not storing backups, just turning timer on and off for pause
 #else
 
@@ -150,7 +152,7 @@ int getAudioInput()
 
 static void startFirstAudioADC()
 {
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) || defined(__SAMD21G18A__) // teensy 3, 3.1, feather M0
 	adc->startSingleRead(AUDIO_INPUT_PIN); // ADC lib converts pin/channel in startSingleRead
 #else
 	adcStartConversion(adcPinToChannelNum(AUDIO_INPUT_PIN));
@@ -166,7 +168,7 @@ static void receiveFirstAudioADC()
 
 static void startSecondAudioADC()
 {
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) || defined(__SAMD21G18A__) // teensy 3, 3.1, feather M0
 	adc->startSingleRead(AUDIO_INPUT_PIN);
 #else
 	ADCSRA |= (1 << ADSC); // start a second conversion on the current channel
@@ -178,7 +180,7 @@ static void startSecondAudioADC()
 static void receiveSecondAudioADC()
 {
 	if (!input_buffer.isFull()) 
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) || defined(__SAMD21G18A__) // teensy 3, 3.1, feather M0
 		input_buffer.write(adc->readSingle());
 #else
 		input_buffer.write(ADC);
@@ -186,7 +188,7 @@ static void receiveSecondAudioADC()
 }
 
 
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) || defined(__SAMD21G18A__) // teensy 3, 3.1, feather M0
 void adc0_isr(void) 
 #else
 ISR(ADC_vect, ISR_BLOCK)
@@ -222,7 +224,9 @@ ISR(ADC_vect, ISR_BLOCK)
 }
 #endif // end main audio input section
 
-
+#if (STEREO_HACK == true)
+extern int audio_out_1, audio_out_2;
+#endif
 
 void audioHook() // 2us excluding updateAudio()
 {
@@ -250,32 +254,55 @@ void audioHook() // 2us excluding updateAudio()
 //-----------------------------------------------------------------------------------------------------------------
 #if (AUDIO_MODE == STANDARD) || (AUDIO_MODE == STANDARD_PLUS)
 
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
-//teensy 3 architecture
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) || defined(__SAMD21G18A__) // teensy 3, 3.1, feather M0
 
-  IntervalTimer timer1;
-
-
-static void teensyAudioOutput()
+#if defined(__SAMD21G18A__)
+//feather M0 architecture
+void samdAudioOutput(struct tc_module *const module_inst)
 {
-	
-#if (USE_AUDIO_INPUT==true)
+	#if (USE_AUDIO_INPUT==true)
+	#warning audio_input
 	adc_count = 0;
 	startSecondAudioADC();
-#endif
-
+	#endif
 	analogWrite(AUDIO_CHANNEL_1_PIN, (int)output_buffer.read());
 }
+//SAMDtimer samdtimer1 = SAMDtimer(3, samdAudioOutput, 1000000UL/AUDIO_RATE);
+SAMDtimer samdtimer1 = SAMDtimer(3, samdAudioOutput, 61, 0); // 61 = 1000000 / 16384
+#else
+//teensy 3 architecture
+static void teensyAudioOutput()
+{
+	#if (USE_AUDIO_INPUT==true)
+	adc_count = 0;
+	startSecondAudioADC();
+	#endif
+	analogWrite(AUDIO_CHANNEL_1_PIN, (int)output_buffer.read());
+}
+IntervalTimer timer1;
+#endif
 
 
 static void startAudioStandard()
 {
 	//backupPreMozziTimer1(); // not for Teensy 3.1
 	
+	#if defined(__SAMD21G18A__)
+	analogWriteResolution(10);
+	#else
 	analogWriteResolution(12);
-	adc->setAveraging(0);
-	adc->setConversionSpeed(ADC_MED_SPEED); // could be ADC_HIGH_SPEED, noisier
-	timer1.begin(teensyAudioOutput, 1000000UL/AUDIO_RATE); 
+	#endif
+	//joseag7//adc->setAveraging(0);
+	//adc->setConversionSpeed(ADC_MED_SPEED); // could be ADC_HIGH_SPEED, noisier
+	//joseag7//adc->setConversionSpeed(ADC_CONVERSION_SPEED::MED_SPEED); // could be ADC_HIGH_SPEED, noisier
+	
+	#if defined(__SAMD21G18A__)
+	//feather M0 architecture
+	samdtimer1.enableInterrupt(1);
+	#else
+	//teensy 3 architecture
+	timer1.begin(teensyAudioOutput, 1000000UL/AUDIO_RATE);
+	#endif
 
 	//backupMozziTimer1(); // // not for Teensy 3.1
 }
@@ -295,9 +322,7 @@ static void startAudioStandard()
 	Timer1.initializeCPUCycles(16000000UL/PWM_RATE, FAST);	// fast mode enables higher PWM rate
 #endif
 	Timer1.pwm(AUDIO_CHANNEL_1_PIN, AUDIO_BIAS);		// pwm pin, 50% of Mozzi's duty cycle, ie. 0 signal
-#if (STEREO_HACK == true)
-	Timer1.pwm(AUDIO_CHANNEL_2_PIN, AUDIO_BIAS);	// sets pin to output
-#endif
+	//Timer1.pwm(AUDIO_CHANNEL_2_PIN, AUDIO_BIAS);
 	TIMSK1 = _BV(TOIE1); 	// Overflow Interrupt Enable (when not using Timer1.attachInterrupt())
 	//TIMSK1 |= _BV(TOIE1) | _BV(OCIE1A); // Overflow Interrupt Enable and Output Compare A Match Interrupt Enable
 	backupMozziTimer1();
@@ -487,17 +512,6 @@ void dummy_function(void)
 
 //-----------------------------------------------------------------------------------------------------------------
 
-static void updateControlWithAutoADC()
-{
-	updateControl();
-	/*
-	#if (USE_AUDIO_INPUT==true)
-		adc_count = 0;
-		startSecondAudioADC();
-#endif
-*/
-	adcStartReadCycle();
-}
 
 
 /* Sets up Timer 0 for control interrupts. This is the same for all output
@@ -505,15 +519,41 @@ options Using Timer0 for control disables Arduino's time functions but also
 saves on the interrupts and blocking action of those functions. May add a config
 option for Using Timer2 instead if needed. (MozziTimer2 can be re-introduced for
 that). */
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) // teensy 3, 3.1
+static void updateControlWithAutoADC()
+{
+	updateControl();
+	/*
+	#if (USE_AUDIO_INPUT==true)
+		adc_count = 0;
+		startSecondAudioADC();
+	#endif
+	*/
+	adcStartReadCycle();
+}
 IntervalTimer timer0;
+#elif defined(__SAMD21G18A__) // feather M0
+void updateControlWithAutoADC(struct tc_module *const module_inst)
+{
+	updateControl();
+	/*
+	#if (USE_AUDIO_INPUT==true)
+		adc_count = 0;
+		startSecondAudioADC();
+	#endif
+	*/
+	adcStartReadCycle();
+}
+SAMDtimer samdtimer0 = SAMDtimer(4, updateControlWithAutoADC, 15625, 0); //15625 = 1000000 / 64
 #endif
 
 
 static void startControl(unsigned int control_rate_hz)
 {
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) // teensy 3, 3.1
 	timer0.begin(updateControlWithAutoADC, 1000000/control_rate_hz);
+#elif defined(__SAMD21G18A__) //feather M0
+	samdtimer0.enableInterrupt(1);
 #else
 	// backup pre-mozzi register values
 	pre_mozzi_TCCR0A = TCCR0A;
@@ -535,7 +575,7 @@ static void startControl(unsigned int control_rate_hz)
 
 void startMozzi(int control_rate_hz)
 {
-	setupMozziADC(); // you can use setupFastAnalogRead() with FASTER or FASTEST in setup() if desired (not for Teensy 3.1)
+	//setupMozziADC(); // you can use setupFastAnalogRead() with FASTER or FASTEST in setup() if desired (not for Teensy 3.1)
 	// delay(200); // so AutoRange doesn't read 0 to start with
 	startControl(control_rate_hz);
 #if (AUDIO_MODE == STANDARD) || (AUDIO_MODE == STANDARD_PLUS)
@@ -547,8 +587,10 @@ void startMozzi(int control_rate_hz)
 
 
 void pauseMozzi(){
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) // teensy 3, 3.1
 	timer1.end();
+#elif defined(__SAMD21G18A__) // feather M0
+	samdtimer1.enableTimer(0);
 #else
 	// restore backed up register values
 	TCCR0A = pre_mozzi_TCCR0A;
@@ -587,8 +629,10 @@ void pauseMozzi(){
 
 void unPauseMozzi()
 {
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO) // teensy 3, 3.1
-  timer1.begin(teensyAudioOutput, 1000000UL/AUDIO_RATE); 
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) // teensy 3, 3.1
+	timer1.begin(teensyAudioOutput, 1000000UL/AUDIO_RATE); 
+#elif defined(__SAMD21G18A__) // feather M0
+	samdtimer1.enableTimer(1);
 #else
 	// restore backed up register values
 	TCCR0A = mozzi_TCCR0A;

@@ -9,7 +9,7 @@
 #define TWI_NONBLOCK_H_
 
 // Added by TB2014 for Teensy 3 port
-#if !(defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO)  || defined(TEENSYDUINO)) // hide all code from Teensy 3.1
+#if !(defined(__MK20DX128__) || defined(__MK20DX256__) || defined(TEENSYDUINO) || defined(TEENSYDUINO) || defined(__SAMD21G18A__)) // teensy 3, 3.1, feather M0 and feather M0
 
 
 #include "Arduino.h"
